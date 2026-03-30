@@ -1,0 +1,1 @@
+{"type": "C_Invariant_Data", "input": "-- Refined Murphi Code Here", "invariant": "Only one node in M state", "explanation": "Ensures single-writer multiple-reader consistency."}

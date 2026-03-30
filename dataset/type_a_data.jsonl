@@ -1,0 +1,1 @@
+{"type": "A_Debugging_CoT", "input": {"error_code": "-- Mock Murphi Code Here", "counterexample_trace": "Trace: state S -> event BusRdX -> bug: multiple M states."}, "chain_of_thought": "Analyzed trace, identified race condition on BusRdX, updated FSM...", "output": "-- Refined Murphi Code Here"}
