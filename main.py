@@ -41,11 +41,21 @@ class CoherencePilot:
                 break
             else:
                 print(f"[Pilot] Murphi verification FAILED. Counterexample found.")
-                # Pruning step (mock)
+                
+                # Track the failed state path in the search tree
+                current_state_path = f"attempt_{attempt}_fsm"
+                self.pruning.record_failure_pattern(pattern="multiple_M_states", state_path=current_state_path)
+                
+                # Pruning step (extracting variables for Tree of Thoughts style reasoning)
                 vars_to_prune = self.pruning.extract_variables_from_trace(murphi_res.counterexample_trace)
                 
                 # Refiner Agent fixes the spec
                 fixed_spec = self.refiner.refine(spec, murphi_res)
+                
+                # Check if the new proposed FSM is already in the pruned search tree
+                if self.pruning.is_pruned(fixed_spec.murphi_code, state_path=f"attempt_{attempt+1}_fsm"):
+                     print("[Pilot] WARNING: Refiner proposed a previously pruned FSM. Backtracking search tree...")
+                     # In a full ToT implementation, we would prompt the LLM to explore a different branch here
                 
                 # Synthesize Type A Data (Debugging CoT)
                 self.data_synth.synthesize_type_a(
