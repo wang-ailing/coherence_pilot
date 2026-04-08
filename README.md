@@ -74,6 +74,22 @@ python main.py
 
 执行后，核心调度器 (`orchestrator.py`) 将启动 Agent 与 Verifier 之间的双向反馈循环，并最终在控制台输出验证结果与合成的数据量。
 
+### 作为 MCP (Model Context Protocol) 运行
+
+为了让大语言模型（如 Claude Desktop 或 Cursor 等支持 MCP 的客户端）能够**自主、动态地**调用形式化验证工具，我们提供了标准的 MCP Server 封装。这改变了传统静态编译脚本的方式，让大模型能以交互式的方式进行自动定理证明与协议验证。
+
+启动 MCP Server：
+
+```bash
+python mcp_server.py
+```
+
+**MCP Server 提供的核心工具（Tools）：**
+- `run_murphi_check`: 编译并运行 Murphi 模型。当遇到 Invariant Violation 时，自动解析冗长的输出，提取**状态变化增量（State Deltas）**，避免 LLM 上下文溢出。
+- `run_lean_proof`: 执行 Lean 4 脚本。不仅返回编译结果，还会在证明卡住时（stuck）提取并返回精确的 **Tactic State（剩余的证明目标/Unsolved Goals）**，引导大模型进行下一步策略推理。
+- `run_ivy_check`: 执行 Ivy 归纳不变量检查。当不变量非归纳时，自动提取 **CTI (Counterexample To Induction)**，精确指出导致归纳失败的状态和动作。
+- `parse_counterexample_trace`: 将现有的 Murphi 输出纯文本结构化为 JSON Trace。
+
 ---
 
 ## 📂 目录结构

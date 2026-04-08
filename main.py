@@ -1,5 +1,5 @@
 import click
-from core.llm_client import LLMClient
+from coherence_pilot.core.orchestrator import CoherencePilot
 from agents.spec_generator import SpecGeneratorAgent
 from agents.refiner import RefinerAgent
 from agents.strengthener import StrengthenerAgent

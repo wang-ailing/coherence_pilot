@@ -1,4 +1,5 @@
 from core.protocol_state import ProtocolSpec, VerificationResult
+from verifiers.murphi_tool import MurphiTool
 
 class MurphiRunner:
     """
@@ -8,39 +9,38 @@ class MurphiRunner:
     """
     def __init__(self, murphi_path: str = "mu"):
         self.murphi_path = murphi_path
+        self.tool = MurphiTool(murphi_compiler=murphi_path)
 
     def run_verification(self, spec: ProtocolSpec) -> VerificationResult:
         """
-        Executes the model checking. Returns success or a counterexample trace.
+        Executes the model checking using the standalone MurphiTool.
+        Returns success or a counterexample trace.
         """
         print(f"[MurphiRunner] Compiling and running Murphi model checking for '{spec.name}'...")
         
-        # Here we would write `spec.murphi_code` to a `.m` file, compile with C++, and run the binary.
-        # Example flow:
-        # 1. Write `spec.murphi_code` to `model.m`
-        # 2. Subprocess: `mu model.m` -> `model.cpp`
-        # 3. Subprocess: `g++ -O3 model.cpp -o model`
-        # 4. Subprocess: `./model`
-        # 5. Parse output to check for violation.
-        
-        # Mocked return for framework structure:
-        # We will simulate a failure on the first run, and success on subsequent runs to show iteration.
+        # Call the standalone MCP Tool
+        # We mock a BUG condition to simulate iteration for the framework if it's the first run
         if not hasattr(self, 'run_count'):
             self.run_count = 0
         self.run_count += 1
         
-        if self.run_count == 1:
-            is_success = False  # Let's pretend it found a bug first time
-        else:
-            is_success = True   # Pretend the refiner fixed it!
+        code_to_run = spec.murphi_code
+        if self.run_count == 1 and "BUG" not in code_to_run:
+            # Force a mock bug for the pilot framework demonstration
+            code_to_run += "\nBUG"
             
-        trace = "Trace: state S -> event BusRdX -> bug: multiple M states."
+        result = self.tool.run_check(code_to_run)
         
-        if is_success:
+        if result["status"] == "success":
             return VerificationResult(is_success=True)
         else:
+            # Extract structured trace and format it as string for the older agent code
+            trace_str = f"Trace Length: {result.get('trace_length')}\n"
+            for step in result.get('counterexample_trace', []):
+                trace_str += f"Step {step['step']}: {step['action']} -> {step['state_changes']}\n"
+                
             return VerificationResult(
                 is_success=False,
-                counterexample_trace=trace,
-                failed_invariant="Invariant 'Only one node can be in M state' violated."
+                counterexample_trace=trace_str,
+                failed_invariant=result.get("violated_invariant", "Unknown")
             )

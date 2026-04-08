@@ -4,3 +4,4 @@ click>=8.0.0
 networkx>=3.0
 pytest>=7.0.0
 python-dotenv>=1.0.0
+mcp>=1.2.0
