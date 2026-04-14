@@ -99,7 +99,7 @@ class CoherencePilot:
 
 
 @click.command()
-@click.option('--prompt', default="设计一个包含 E 状态的 MESI 协议", help='User natural language request for protocol.')
+@click.option('--prompt', default="Design a MESI protocol with an E state", help='User natural language request for protocol.')
 def cli(prompt):
     """
     Coherence Pilot: LLM + Agent Framework for Cache Coherence Verification.
