@@ -1,5 +1,4 @@
 import click
-from coherence_pilot.core.orchestrator import CoherencePilot
 from agents.spec_generator import SpecGeneratorAgent
 from agents.refiner import RefinerAgent
 from agents.strengthener import StrengthenerAgent
@@ -7,6 +6,7 @@ from verifiers.murphi_runner import MurphiRunner
 from verifiers.lean_runner import LeanRunner
 from verifiers.pruning import PruningModule
 from data.synthesizer import DataSynthesizer
+from core.llm_client import LLMClient
 
 class CoherencePilot:
     def __init__(self):

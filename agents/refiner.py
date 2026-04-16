@@ -1,5 +1,5 @@
-from coherence_pilot.agents.spec_generator import Spec
 from core.protocol_state import ProtocolSpec, VerificationResult
+from core.llm_client import LLMClient
 
 class RefinerAgent:
     """
