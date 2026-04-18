@@ -1,10 +1,10 @@
 import os
 import re
-import json
 import subprocess
 import tempfile
-from typing import Dict, Any, List, Optional
-from core.protocol_state import ProtocolSpec, VerificationResult
+from typing import Any, Dict, List
+
+from core.runtime_config import load_runtime_config
 
 class MurphiTool:
     """
@@ -12,9 +12,19 @@ class MurphiTool:
     Executes Murphi model checking and parses the counterexample trace 
     into structured JSON (State Deltas) to avoid LLM context overflow.
     """
-    def __init__(self, murphi_compiler: str = "mu", gpp_compiler: str = "g++"):
-        self.murphi_compiler = murphi_compiler
-        self.gpp_compiler = gpp_compiler
+    def __init__(
+        self,
+        murphi_compiler: str | None = None,
+        gpp_compiler: str | None = None,
+        include_dir: str | None = None,
+    ):
+        murphi_config = load_runtime_config()["murphi"]
+        self.murphi_compiler = murphi_compiler or murphi_config["compiler"]
+        self.gpp_compiler = gpp_compiler or murphi_config["gpp_compiler"]
+        self.include_dir = include_dir or murphi_config["include_dir"]
+        self.memory_mb = murphi_config["memory_mb"]
+        self.loop_limit = murphi_config["loop_limit"]
+        self.run_flags = murphi_config["run_flags"]
 
     def run_check(self, model_code: str, max_depth: int = 100) -> Dict[str, Any]:
         """
@@ -32,7 +42,13 @@ class MurphiTool:
                 
             # 1. Compile .m to .cpp
             try:
-                subprocess.run([self.murphi_compiler, m_file], cwd=tmpdir, check=True, capture_output=True, text=True)
+                compile_result = subprocess.run(
+                    [self.murphi_compiler, m_file],
+                    cwd=tmpdir,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
             except subprocess.CalledProcessError as e:
                 return {
                     "status": "error",
@@ -44,9 +60,23 @@ class MurphiTool:
                 # Mocking logic for when Murphi is not installed locally
                 return self._mock_run(model_code)
 
+            if not os.path.exists(cpp_file):
+                return {
+                    "status": "error",
+                    "error_type": "CompilationError",
+                    "message": "Murphi compilation failed.",
+                    "details": (compile_result.stderr or "") + (compile_result.stdout or ""),
+                }
+
             # 2. Compile .cpp to binary
             try:
-                subprocess.run([self.gpp_compiler, "-O3", cpp_file, "-o", bin_file], cwd=tmpdir, check=True, capture_output=True, text=True)
+                subprocess.run(
+                    [self.gpp_compiler, "-O3", "-I", self.include_dir, cpp_file, "-o", bin_file],
+                    cwd=tmpdir,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
             except subprocess.CalledProcessError as e:
                 return {
                     "status": "error",
@@ -57,8 +87,9 @@ class MurphiTool:
 
             # 3. Run Model Checking
             try:
-                # -ndl restricts depth, -m specifies memory limit
-                run_cmd = [bin_file, f"-ndl{max_depth}", "-m1000"]
+                # CMurphi uses separate flags such as -v, -tv, -td, -m<n>, -loop<n>, -ndl.
+                loop_limit = max(max_depth, self.loop_limit)
+                run_cmd = [bin_file, *self.run_flags, f"-m{self.memory_mb}", f"-loop{loop_limit}"]
                 result = subprocess.run(run_cmd, cwd=tmpdir, capture_output=True, text=True)
                 output = result.stdout + "\n" + result.stderr
                 
@@ -95,12 +126,14 @@ class MurphiTool:
         # Very basic parsing logic (mocked up for typical Murphi output)
         for line in lines:
             line = line.strip()
-            if line.startswith("State "):
+            if line.startswith("State ") or line.startswith("Startstate"):
                 state_match = re.match(r"State (\d+):", line)
                 if state_match:
                     if current_state["state_num"] != -1:
                         trace.append(current_state)
                     current_state = {"rule": None, "state_num": int(state_match.group(1)), "vars": {}}
+                elif current_state["state_num"] == -1:
+                    current_state = {"rule": None, "state_num": 0, "vars": {}}
             elif line.startswith("Rule "):
                 current_state["rule"] = line.replace("Rule ", "").replace(" fired.", "")
             elif ":" in line and current_state["state_num"] != -1:

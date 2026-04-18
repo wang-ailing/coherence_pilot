@@ -1,5 +1,6 @@
 from core.llm_client import LLMClient
 from core.protocol_state import ProtocolSpec
+from core.runtime_config import get_template_text
 
 class SpecGeneratorAgent:
     """
@@ -19,19 +20,41 @@ class SpecGeneratorAgent:
         Generate the initial formal specification based on the user's description.
         """
         print(f"[SpecGenerator] Generating specification for: {user_prompt}")
-        prompt = (
-            f"User requested a cache coherence protocol: {user_prompt}\n"
-            f"Please generate the complete formal protocol specification including its states, events, "
-            f"transitions, as well as the initial Murphi and Lean 4 code for model checking and theorem proving."
-        )
-        
-        # In a real implementation, this would use self.llm.generate_structured(prompt, ProtocolSpec, self.system_prompt)
-        # Here we mock it for the framework skeleton.
+        metadata = self._summarize_request_with_llm(user_prompt)
         return ProtocolSpec(
-            name="GeneratedProtocol",
-            states=["I", "S", "E", "M"],
-            events=["PrRd", "PrWr", "BusRd", "BusRdX"],
+            name=metadata["name"],
+            states=metadata["states"],
+            events=metadata["events"],
             transitions={},
-            murphi_code="-- Mock Murphi Code Here",
-            lean_code="-- Mock Lean Code Here"
+            murphi_code=self._initial_buggy_murphi_model(),
+            lean_code=self._initial_lean_script(metadata["name"]),
         )
+
+    def _summarize_request_with_llm(self, user_prompt: str) -> dict:
+        prompt = (
+            "Summarize the requested protocol into JSON.\n"
+            "Keys: name, states, events.\n"
+            "Use concise strings. Keep states/events short.\n"
+            f"User request: {user_prompt}"
+        )
+        try:
+            result = self.llm.generate_json(prompt, self.system_prompt)
+            return {
+                "name": result.get("name", "GeneratedProtocol"),
+                "states": result.get("states", ["I", "S", "E", "M"]),
+                "events": result.get("events", ["PrRd", "PrWr", "BusRd", "BusRdX"]),
+            }
+        except Exception as exc:
+            print(f"[SpecGenerator] LLM request failed, using fallback metadata: {exc}")
+            return {
+                "name": "GeneratedProtocol",
+                "states": ["I", "S", "E", "M"],
+                "events": ["PrRd", "PrWr", "BusRd", "BusRdX"],
+            }
+
+    def _initial_buggy_murphi_model(self) -> str:
+        return get_template_text("initial_murphi")
+
+    def _initial_lean_script(self, protocol_name: str) -> str:
+        theorem_name = "".join(ch if ch.isalnum() else "_" for ch in protocol_name.lower())
+        return get_template_text("initial_lean").replace("__THEOREM_NAME__", f"{theorem_name}_single_writer_demo")

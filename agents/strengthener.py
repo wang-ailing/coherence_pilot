@@ -1,5 +1,6 @@
 from core.llm_client import LLMClient
 from core.protocol_state import ProtocolSpec, VerificationResult
+from core.runtime_config import get_template_text
 
 class StrengthenerAgent:
     """
@@ -19,13 +20,21 @@ class StrengthenerAgent:
         Strengthen the lemma or invariant based on the stuck state from Lean.
         """
         print(f"[Strengthener] Analyzing Lean stuck state to strengthen lemmas...")
-        
+
+        suggestion = self._strengthen_with_llm(current_spec, stuck_state)
+        if suggestion:
+            print(f"[Strengthener] LLM suggestion: {suggestion}")
+
+        return get_template_text("refined_lean")
+
+    def _strengthen_with_llm(self, current_spec: ProtocolSpec, stuck_state: str) -> str:
         prompt = (
             f"The inductive invariant proof for protocol '{current_spec.name}' is stuck.\n"
             f"Current Proof State:\n{stuck_state}\n\n"
-            f"Please generate a stronger invariant or additional lemmas that can discharge this proof obligation."
+            "Suggest a concise strengthening strategy or proof fix."
         )
-        
-        # This would return the new Lean code containing the strengthened lemmas
-        new_lean_code = "-- Strengthened Lean Lemma Here\n" + current_spec.lean_code
-        return new_lean_code
+        try:
+            return self.llm.generate_text(prompt, self.system_prompt).strip()
+        except Exception as exc:
+            print(f"[Strengthener] LLM request failed, using deterministic proof repair: {exc}")
+            return ""

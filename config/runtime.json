@@ -1,0 +1,27 @@
+{
+  "llm": {
+    "api_key_envs": ["DEEPSEEK_API_KEY", "OPENAI_API_KEY"],
+    "base_url_envs": ["DEEPSEEK_API_BASE", "OPENAI_BASE_URL"],
+    "model_envs": ["DEEPSEEK_MODEL", "OPENAI_MODEL"],
+    "default_base_url": "https://api.deepseek.com/v1",
+    "default_model": "deepseek-chat",
+    "local_api_key": "local-vllm"
+  },
+  "murphi": {
+    "compiler": "/root/ARC/CMurphi/src/mu",
+    "include_dir": "/root/ARC/CMurphi/include",
+    "gpp_compiler": "g++",
+    "memory_mb": 1000,
+    "loop_limit": 100,
+    "run_flags": ["-v", "-tv", "-td", "-ndl"]
+  },
+  "lean": {
+    "binary": "lean"
+  },
+  "templates": {
+    "initial_murphi": "config/templates/initial_buggy.m",
+    "refined_murphi": "config/templates/refined.m",
+    "initial_lean": "config/templates/initial.lean",
+    "refined_lean": "config/templates/refined.lean"
+  }
+}
